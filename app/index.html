@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Cam Overlay</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 1920px; height: 1080px; background: transparent; overflow: hidden;
+    font-family: sans-serif; }
+  #box { position: absolute; right: 32px; top: 32px; width: 640px; height: 360px; background: #000;
+    border: 3px solid #3a8bff; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.6); }
+  #box img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+<div id="box">
+  <img id="snap">
+  <img id="img">
+</div>
+<script src="config.js"></script>
+<script>
+// Camera overlay: a transparent overlay window (appinfo defaultWindowType "overlay") with a
+// small box in the top-right corner. Uses go2rtc MJPEG in an <img>: images don't touch the
+// TV's single hardware video output, so whatever is playing underneath keeps playing.
+// Without config.js there is nothing to show: close right away instead of hanging.
+if (!window.OVERLAY_CONFIG) { window.close(); throw new Error("missing config.js"); }
+var BASE = "https://" + window.OVERLAY_CONFIG.go2rtcHost + "/api/";
+var params = {};
+try { params = JSON.parse(window.PalmSystem && window.PalmSystem.launchParams || "{}") || {}; } catch (e) {}
+var STREAM = params.stream || window.OVERLAY_CONFIG.stream;
+var TIMEOUT = (params.timeout || 60) * 1000;
+
+window.overlayState = {stream: STREAM, live: false, errors: 0, keys: [], startedAt: Date.now()};
+
+var img = document.getElementById("img");
+// go2rtc may take a few seconds to start the MJPEG transcode: show a snapshot meanwhile.
+document.getElementById("snap").src = BASE + "frame.jpeg?src=" + STREAM + "&t=" + Date.now();
+
+function connect() { img.src = BASE + "stream.mjpeg?src=" + STREAM + "&t=" + Date.now(); }
+img.onerror = function () {
+  window.overlayState.errors++;
+  window.overlayState.live = false;
+  setTimeout(connect, 2000);
+};
+// onload doesn't fire reliably for multipart streams: watch for the first decoded frame instead.
+setInterval(function () {
+  if (!window.overlayState.live && img.naturalWidth > 0) {
+    window.overlayState.live = true;
+    window.overlayState.firstFrameMs = Date.now() - window.overlayState.startedAt;
+    document.getElementById("snap").removeAttribute("src");
+  }
+}, 200);
+connect();
+
+function closeOverlay() {
+  img.removeAttribute("src");
+  window.close();
+}
+setTimeout(closeOverlay, TIMEOUT);
+// Back (461), OK (13) or Exit (1001) close the overlay.
+document.addEventListener("keydown", function (e) {
+  window.overlayState.keys.push(e.keyCode);
+  if (e.keyCode === 461 || e.keyCode === 13 || e.keyCode === 1001) { closeOverlay(); e.preventDefault(); }
+});
+</script>
+</body>
+</html>

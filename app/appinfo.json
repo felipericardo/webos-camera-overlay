@@ -1,0 +1,14 @@
+{
+  "id": "tld.my.camoverlay",
+  "version": "0.0.7",
+  "vendor": "tld.my",
+  "type": "web",
+  "main": "index.html",
+  "title": "Cam Overlay",
+  "icon": "icon.png",
+  "resolution": "1920x1080",
+  "defaultWindowType": "overlay",
+  "transparent": true,
+  "noSplashOnLaunch": true,
+  "disableBackHistoryAPI": true
+}
